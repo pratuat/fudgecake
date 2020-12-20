@@ -1,11 +1,9 @@
 version: "3.8"
 services:
   db:
-    image: postgres
+    image: postgres:12.5-alpine
     env_file:
       - db.env
-    environment:
-      PGDATA: /pg_data
     volumes:
       - type: volume
         source: onyxdb
@@ -14,12 +12,12 @@ services:
       - "5432:5432"
 
   redis:
-    image: redis
+    image: redis:6.0.9-alpine
     ports:
       - "6379:6379"
 
   onyx:
-    build: ./onyx/
+    image: pratuat/onyx:1.0.0
     command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b 0.0.0.0"
     ports:
       - "3000:3000"
@@ -34,7 +32,7 @@ services:
       - POSTGRES_HOST=db
 
   worker:
-    image: fudgecake_onyx
+    image: pratuat/onyx:1.0.0
     command: bash -c "QUEUES=* bundle exec rake resque:work"
     depends_on:
       - db
@@ -47,7 +45,7 @@ services:
       - POSTGRES_HOST=db
 
   scheduler:
-    image: fudgecake_onyx
+    image: pratuat/onyx:1.0.0
     command: bash -c "bundle exec rake resque:scheduler"
     depends_on:
       - db
