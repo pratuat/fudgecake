@@ -17,7 +17,7 @@ services:
       - "6379:6379"
 
   onyx:
-    image: pratuat/onyx:1.0.0
+    image: pratuat/onyx:1.0.1
     command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b 0.0.0.0"
     ports:
       - "3000:3000"
@@ -32,7 +32,7 @@ services:
       - POSTGRES_HOST=db
 
   worker:
-    image: pratuat/onyx:1.0.0
+    image: pratuat/onyx:1.0.1
     command: bash -c "QUEUES=* bundle exec rake resque:work"
     depends_on:
       - db
@@ -45,7 +45,7 @@ services:
       - POSTGRES_HOST=db
 
   scheduler:
-    image: pratuat/onyx:1.0.0
+    image: pratuat/onyx:1.0.1
     command: bash -c "bundle exec rake resque:scheduler"
     depends_on:
       - db
