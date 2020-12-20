@@ -4,10 +4,10 @@ services:
     image: postgres:12.5-alpine
     env_file:
       - db.env
+    environment: 
+      - PGDATA=/pg_data
     volumes:
-      - type: volume
-        source: onyxdb
-        target: /pg_data
+      - ${DATA_DIR}:/pg_data
     ports:
       - "5432:5432"
 
@@ -56,6 +56,3 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - POSTGRES_HOST=db
-
-volumes:
-  onyxdb:
