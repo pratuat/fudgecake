@@ -1,6 +1,6 @@
 import pdb
 
-import requests, re
+import requests, re, datetime
 from bs4 import BeautifulSoup
 from pymongo import MongoClient, UpdateOne
 # from threading import Thread
@@ -26,10 +26,10 @@ class NEPSE:
 
     @classmethod
     def download_floorsheet(cls, callback=None):
-        page_count = cls.fetch_page(page=1, callback=callback)
+        page_count, date = cls.get_day_infos()
 
-        for page in range(2, page_count+1):
-            cls.fetch_page(page=page, callback=callback)
+        for page in range(1, page_count+1):
+            cls.fetch_page(page=page, date=date, callback=callback)
 
         # with ThreadPoolExecutor(max_workers=10) as executor:
         #     for page in range(2, page_count+1):
@@ -42,34 +42,36 @@ class NEPSE:
         return "ok"
 
     @classmethod
-    def fetch_page(cls, page, callback):
+    def fetch_page(cls, page, date, callback):
         try:
-            response = requests.get(cls.floorsheet_url.format(page=page), params=cls.get_params(page))
-            transactions = cls.scrape_transactions(response.text)
+            response = requests.get(cls.floorsheet_url.format(page=page), params=cls.get_params())
+            transactions = cls.scrape_transactions(date, response.text)
             logger.debug(f"\tPage:{page}\tStatus:{response.status_code}\tTransactionCount:{len(transactions)}")
 
             if callback:
                 callback(transactions)
 
-            if page == 1:
-                return cls.get_page_count(response.text)
-            else:
-                return None
+            return None
         except Exception as e:
             logger.error(f"Error scraping page {page}.")
 
         return None
 
     @classmethod
-    def get_page_count(cls, text):
-        soup = BeautifulSoup(text, features="lxml")
+    def get_day_infos(cls):
+        response = requests.get(cls.floorsheet_url.format(page=1), params=cls.get_params())
+        soup = BeautifulSoup(response.text, features="lxml")
         rows = soup.find(id='home-contents').find_all('tr')
         page_count = int(re.search(r'Page 1/[0-9]*', str(rows[-3])).group().split('/')[1])
 
-        return page_count
+        date_node = soup.find(id='ticker').find(id='date')
+        date = re.search(r'20[0-9][0-9]-[0-1][1-9]-[0-3][0-9]', date_node.get_text()).group()
+        date = datetime.datetime.strptime(date, "%Y-%m-%d")
+
+        return [page_count, date]
 
     @classmethod
-    def scrape_transactions(cls, text):
+    def scrape_transactions(cls, date, text):
         soup = BeautifulSoup(text, features="lxml")
         rows = soup.find(id='home-contents').find_all('tr')
 
@@ -78,6 +80,7 @@ class NEPSE:
         for row in rows[2:-3]:
             values = row.get_text().strip().split('\n')[1:]
             transactions.append({
+                'date' : date,
                 'contract_no' : int(values[0]),
                 'stock_symbol' : values[1],
                 'buyer_broker' : values[2],
@@ -89,6 +92,7 @@ class NEPSE:
 
         return transactions
 
+    @classmethod
     def get_params(cls):
         return (
             ('_limit', '500'),
