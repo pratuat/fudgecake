@@ -1,32 +1,38 @@
-import pdb
-
-import requests, re, datetime
+import requests, re, datetime, os
 from bs4 import BeautifulSoup
 from pymongo import MongoClient, UpdateOne
+import src.utils.logger_utils as logger_utils
+
 # from threading import Thread
 # from concurrent.futures import ThreadPoolExecutor
 # from src.utils.request_manager import RequestManager
-import src.utils.logger_utils as logger_utils
 
 logger = logger_utils.get_logger(filename='onyx.log', name=__name__, level='DEBUG')
 
 class MongoStore:
-    client = MongoClient(host="localhost", port=27017, username='root', password='password')
+    client = MongoClient(
+        host=os.getenv('MONGODB_HOST'),
+        port=int(os.getenv('MONGODB_PORT')),
+        username=os.getenv('MONGODB_USER'),
+        password=os.getenv('MONGODB_PASSWORD'),
+    )
+
+    db = client.get_database(os.getenv('MONGODB_DATABASE'))
 
     @classmethod
     def upload_transaction(cls, transactions):
-        db = cls.client.get_database('onyx')
-        collection = db.get_collection('transactions')
-
+        collection = cls.db.get_collection('transactions')
         updates = [UpdateOne({"_id" : transaction.get("contract_no")}, {"$set" : {**transaction}}, upsert=True) for transaction in transactions]
         collection.bulk_write(updates)
-
 class NEPSE:
     floorsheet_url = "http://www.nepalstock.com/main/floorsheet/index/{page}"
 
     @classmethod
     def download_floorsheet(cls, callback=None):
+        print("NEPSE.download_floorsheet ...")
         page_count, date = cls.get_day_infos()
+
+        print(f"Page count:{page_count} Date: {date}")
 
         for page in range(1, page_count+1):
             cls.fetch_page(page=page, date=date, callback=callback)
@@ -43,6 +49,7 @@ class NEPSE:
 
     @classmethod
     def fetch_page(cls, page, date, callback):
+        print("Fetching page ", page)
         try:
             response = requests.get(cls.floorsheet_url.format(page=page), params=cls.get_params())
             transactions = cls.scrape_transactions(date, response.text)
@@ -53,6 +60,7 @@ class NEPSE:
 
             return None
         except Exception as e:
+            print("Error ...")
             logger.error(f"Error scraping page {page}.")
 
         return None
@@ -97,3 +105,12 @@ class NEPSE:
         return (
             ('_limit', '500'),
         )
+
+if __name__ == '__main__':
+
+    import sys
+    print(sys.path)
+    print("=" * 50)
+    print("Calling scraping job...")
+    callback = MongoStore.upload_transaction
+    NEPSE.download_floorsheet(callback=callback)

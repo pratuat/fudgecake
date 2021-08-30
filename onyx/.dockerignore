@@ -1,0 +1,5 @@
+logs/*
+references/
+.gitignore
+.dockerignore
+Dockerfile
