@@ -1,60 +1,22 @@
 version: "3.8"
 services:
+  onyx:
+    image: onyx:latest
+    environment:
+      - MONGODB_HOST=db
+    env_file:
+      - onyx.env
+    depends_on:
+      - db
+
   db:
-    image: postgres:12.5-alpine
+    image: mongo:latest
     env_file:
       - db.env
-    environment:
-      - PGDATA=/onyx/pg_data
     volumes:
-      - onyx:/onyx
+      - onyx_test:/etc/mongo
     ports:
-      - "5432:5432"
+      - 27017:27017
 
-  redis:
-    image: redis:6.0.9-alpine
-    ports:
-      - "6379:6379"
-
-  onyx:
-    image: onyx:1.0
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b 0.0.0.0"
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - onyx.env
-      - db.env
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - POSTGRES_HOST=db
-
-  worker:
-    image: onyx:1.0
-    command: bash -c "QUEUES=* bundle exec rake resque:work"
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - onyx.env
-      - db.env
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - POSTGRES_HOST=db
-
-  scheduler:
-    image: onyx:1.0
-    command: bash -c "bundle exec rake resque:scheduler"
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - onyx.env
-      - db.env
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - POSTGRES_HOST=db
 volumes:
-  onyx:
+  onyx_test:

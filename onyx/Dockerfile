@@ -7,4 +7,5 @@ RUN pip3 install -r requirements.txt
 COPY . /fudgecake/onyx
 
 WORKDIR /fudgecake/onyx
-CMD "python3", "-m", "src.onyx.nepse"
+
+CMD bash -c "python3 -m src.onyx.nepse"
